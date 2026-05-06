@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+<link rel="shortcut icon" href="#">
+<meta http-equiv="Content-Security-Policy"
+	content="upgrade-insecure-requests">
+<!--<link rel="stylesheet" th:href="@{/css/login.css}">-->
+<link rel="stylesheet" th:href="@{/css/styles.css}">
+<link rel="stylesheet" th:href="@{/css/sleepcheck.css}">
+<link rel="stylesheet" th:href="@{/css/vendor/threePageCss/navibar.css}">
+<link rel="stylesheet" th:href="@{/css/chat.css}">
+<script th:src="@{/js/jquery-3.6.0.js}"></script>
+<script
+	src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script type="text/javascript"
+	src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script src="/js/webrtc_client.js"></script>
+<script th:src="@{/js/simplepeer.min.js}"></script>
+<script
+	src="http://unpkg.com/@tensorflow/tfjs-core@2.4.0/dist/tf-core.js"></script>
+<script
+	src="http://unpkg.com/@tensorflow/tfjs-converter@2.4.0/dist/tf-converter.js"></script>
+<script
+	src="http://unpkg.com/@tensorflow/tfjs-backend-webgl@2.4.0/dist/tf-backend-webgl.js"></script>
+<script
+	src="http://unpkg.com/@tensorflow-models/face-landmarks-detection@0.0.1/dist/face-landmarks-detection.js"></script>
+<script
+	src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2/dist/posenet.min.js"></script>
+<script
+	src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@0.0.6/dist/pose-detection.min.js"></script>
+<script th:src="@{/js/html2canvas.js}"></script>
+<script>
+		$(document).ready(function () {
+
+			$('.side-label').on('click', function () {
+				let sideContainer = $('.' + this.getAttribute('data-function') + '-container');
+				if (sideContainer.hasClass('side-out')) {
+					$('.side-container').removeClass('side-out');
+					sideContainer.addClass('current-out');
+					sideContainer.siblings().removeClass('current-out');
+					$('.video-container').css('width', '100%');
+					$('.side-label').removeClass('active');
+					$('.side-container > span').removeClass('container-in');
+					$('.side-container > span').addClass('container-out');
+					$('.side-container > span').text('◀');
+				} else {
+					$('.side-container').removeClass('side-out');
+					sideContainer.addClass('side-out');
+					sideContainer.addClass('current-out');
+					sideContainer.siblings().removeClass('current-out');
+					$('.video-container').css('width', '70%');
+					$('.side-label').removeClass('active');
+					$('.side-container > span').removeClass('container-out');
+					$('.side-container > span').addClass('container-in');
+					$('.side-container > span').text('▶');
+					$(this).addClass('active');
+				}
+			});
+
+			document.getElementById('chat-btn').click();
+			$('.side-container > span').on('click', function () {
+				if ($(this).hasClass('container-out')) {
+					let dataFunction = $(this).attr('data-function');
+					console.log("dataFunction: ", dataFunction);
+					$('.' + dataFunction + '-container').addClass('side-out');
+					$('.side-label').removeClass('active');
+					$('#' + dataFunction + '-btn').addClass('active');
+					$('.video-container').css('width', '70%');
+					$(this).removeClass('container-out');
+					$(this).text('▶');
+				} else {
+					$('.side-container').removeClass('side-out');
+					$('.side-label').removeClass('active');
+					$('.video-container').css('width', '100%');
+					$(this).addClass('container-out');
+					$(this).removeClass('container-in');
+					$(this).text('◀');
+				}
+			});
+			$('.container-out').on('click', function () {
+				let dataFunction = $(this).attr('data-function');
+				console.log("dataFunction: ", dataFunction);
+				$('.' + dataFunction + '-container').addClass('side-out');
+				$(this).addClass('container-out');
+				$(this).text('▶');
+			});
+		});
+	</script>
+<script th:inline="javascript">
+		$(document).ready(function () {
+			let roomId = [[${ room.roomid }]];
+			let roomName = [[${ room.roomname }]];
+			let loginId = [[${ #authentication.principal.username }]];
+			let localId = [[${ localId }]];
+			let roomHistoryNum;
+			let emailRandom;
+			let sessionId;
+			let videoStream;
+			let localStream;
+			let localStreamTrack;
+			let displayStream;
+			let displayStreamTrack;
+			let userList;
+			let userLength;
+			let callerPeerList = [];
+			let calleePeerList = [];
+			let calleePeersList = [];
+			let localVid = $('#localVid')[0];
+			let inviteRoomButton = document.getElementsByClassName('inviteRoom');
+
+			let emailNumber = document.getElementById('emailNumber');
+
+			//얼굴 인식 변수
+			let eye = 0; // 눈 상단 위치
+			let eye2 = 0; // 눈 하단 위치
+			let count = 0;  // 졸음 카운트
+			let countPix;
+			let period = 0; // 기간
+			let periodCount = 10; // 몇초를 체크할 것인가?
+			let max = 0; //눈 거리 최대 값
+			let model;
+			
+			//mic on/off audio on/off
+			let localTracks = []
+			let parts = [];
+			let mediaRecorder;
+			let toggleButton = document.querySelector('#toggle-cam')
+			let saveButton = document.querySelector('#save-btn')
+			let micButton = document.querySelector('#mic-btn')
+			let sleepAlert = document.querySelector('.video-area')
+			let sleepAlert2 = document.querySelector('#heart')
+			let leaveButton = document.querySelector('#leave-btn')
+			let sleepCheck = document.querySelector('#sleepCheck')
+			// let canvas;
+			let video = document.getElementById("localVid")
+			let canvas = document.getElementById("canvas");
+			let context = canvas.getContext("2d");
+			let skillbar = document.querySelector('.skills-bar')
+			let gauge = document.querySelector('#gauge')
+			let sleepPicture = document.querySelector('.sleepPic')
+			let test = document.querySelector('#test')
+			let countDis; // angle pixel
+			let sleepStartDate;
+			let sleepEndDate;
+			let sleepTimeTime;
+			let sleepSignal = false;
+
+			let x1; // x 차이
+			let y1; // y 차이
+			let d1; // 대각선 길이
+			let rate; // 사인전
+			let angle; // 팔 각도
+			let angleCut = 65; // 팔 각도 판단
+			let arc = document.querySelector("svg path");
+			let temperature = document.querySelector("#temperature");
+			let color = "red";
+			let boo = false; // hand up
+			let stretchedPre = false; // hands up mission
+
+			let sleepGameOver = false;
+			
+			let sle = false; // sleep check
+			let imgType = "image/jpg"
+			let sleepImg = new Image();
+
+			let landInterval;
+			let eyeLandInterval
+			// 졸음 확인
+
+			let url
+			let modalNotice = document.querySelector('.modalSleep-notice');
+			let modalSleep = document.querySelector('.modalSleep');
+			let btnClose = document.querySelector('.btn-close-sleep');
+			let choCheck;
+			// 2022.09.27 추가
+			let videoSleep = document.querySelector('.video-wrap');
+
+
+			// 2022.09.29 추가
+			let gagging;
+			let gaggingCount = 0;
+			let gaggingImage = ["../images/sleep/hehe.gif", "../images/sleep/hehe2.gif"];
+			let ment = ["자고 있는 너의 모습! ", "반응속도가 느리시네요! "];
+			let modalNotice2 = document.querySelector(".modalSleep-notice2");
+			let modalNotice2_1 = document.querySelector(".modalSleep-notice2-1");
+			let modalNotice3 = document.querySelector(".modalSleep-notice3");
+			let modalNotice3_1 = document.querySelector(".modalSleep-notice3-1");
+			let modalNotice3_2 = document.querySelector(".modalSleep-notice3-2");
+			let modalNotice4 = document.querySelector(".modalSleep-notice4");
+			let modalNotice4_1 = document.querySelector(".modalSleep-notice4-1");
+			let modalSleep_content = document.querySelector(".modalSleep-content");
+			let modalSleepBody = document.querySelector(".modalSleep-body > img");
+			let checkCount = document.querySelector("#checkCount");
+
+			let wakeUpSound = new Audio("../images/sleep/good.mp3")
+
+			let checkSleepLo;
+			let nextLevel;
+			let sleepMent = document.querySelector("#sleepMent");
+			let mainNav = document.querySelector('#header')
+
+
+			console.log("입장: " + roomName + ", " + roomId + ", " + loginId);
+
+			//채팅방 들어오면 실행되는 함수
+			async function setUser() {
+				await navigator.mediaDevices.getUserMedia({
+					video: true,
+					audio: true
+				}).then((stream) => {
+					videoStream = new MediaStream(stream.getVideoTracks());
+					localStream = stream;
+					localVid.srcObject = videoStream;
+					localStreamTrack = stream.getVideoTracks()[0];
+					connect();
+					//getRoomHistoryNumber(roomId);
+					selectMemo(roomId);
+					
+				}).catch(function (e) {
+					alert(e);
+				})
+			}
+
+			function createUserHistory() {
+				$.ajax({
+					url: '/history/createUserHistory',
+					method: 'post',
+					data: {roomid: roomId, roomHistoryNum: roomHistoryNum},
+					success: function(data) {
+						if (data > 0)
+						console.log("새로운 userHistory가 생성됨");
+					},
+					error: function(e) {
+						console.log(e);
+					}
+				});
+			}
+
+			async function url2blob(url) {
+				try {
+					const data = await fetch(url);
+					const blob = await data.blob();
+					console.log("success creating image blob");
+					document.getElementById('receivedImg').src = URL.createObjectURL(blob);
+					let reader = new FileReader();
+					reader.onloadend = function() {
+						console.log('reader.result: ', reader.result);
+						callerPeerList.forEach((peer) => {
+							peer[0].send(reader.result);
+						});
+						calleePeerList.forEach((peer) => {
+							peer[0].send(reader.result);
+						});
+					}
+					reader.readAsArrayBuffer(blob);
+				} catch (err) {
+					console.error(err.name, err.message);
+				}
+			}
+
+			function connect() {
+				//1. SockJS && stomp 연결
+				let sockJs = new SockJS("/ws/chat", null, { transports: ["websocket", "xhr-streaming", "xhr-polling"] });
+				let stomp = Stomp.over(sockJs);
+				stomp.connect({}, function () {
+					console.log("STOMP Connection")
+					//subscribe to join channel
+					stomp.subscribe("/sub/room/join/" + roomId, (data) => {
+						//방에 접속한 모든 사람들의 정보를 받아옴
+						let users = JSON.parse(data.body);
+						userList = users;
+
+						//방에 현재 몇명이 있는지 계산
+						let userCount = users.length - 1;
+						userLength = users.length;
+						//마지막으로 접속한 사람의 sessionId를 받아옴
+						let remoteId = users[userCount].id;
+						console.log("유저 목록: ", users);
+						console.log("유저의 수: ", users.length);
+
+						//인원이 한명이거나(자신), 자신이 join한 경우에는 calleePeer생성 후 return
+						if (userCount <= 0 || users[userCount].id === localId) {
+							for (let i = 0; i < users.length - 1; i++) {
+								let calleePeer = new SimplePeer({
+									initiator: false,
+									trickle: true,
+									stream: localStream
+								});
+								calleePeerList.push([calleePeer, localId, users[i].id]);
+
+								calleePeer.on('signal', (answer) => {
+									stomp.send(
+										"/pub/room/answer/" + roomId, {},
+										JSON.stringify({
+											from: localId,
+											to: users[i].id,
+											sdp: answer,
+											roomid: roomId
+										})
+									);
+								});
+
+								calleePeer.on('connect', () => {
+									console.log('connection established(from callee side)');
+									resizeVideo();
+								});
+
+								calleePeer.on('stream', (stream) => {
+									console.log("stream from caller received");
+									console.log("id of the caller: " + users[i].id);
+									let video = document.createElement("video");
+									let videoWrap = document.createElement("div");
+									// 상대방 졸음 판단
+									let alert = document.createElement("div");
+									video.setAttribute('id', users[i].id);
+									videoWrap.setAttribute('class', 'video-wrap');
+									video.autoplay = true;
+									videoWrap.append(video);
+									// 상대방 졸음 판단
+									alert.setAttribute("class", "warning");
+									videoWrap.append(alert);
+									$('.video-area').append(videoWrap);
+									video.srcObject = new MediaStream(stream.getTracks());
+								});
+
+								calleePeer.on('error', (e) => {
+									console.log("connection error(from callee side) : ", e);
+								});
+
+								calleePeer.on('data', (binaryData) => {
+									let imgBlob = new Blob([binaryData], {type: 'image/png'});
+									document.getElementById('receivedImg').src = URL.createObjectURL(imgBlob);
+								});
+
+								// apply the same logic as callerpeer.onclose
+								calleePeer.on('close', () => {
+									if (document.getElementById(users[i].id)) {
+										document.getElementById(users[i].id).parentElement.remove();
+										let closedName = findName(users[i].id);
+										console.log('closed member: ', closedName);
+										stomp.send('/pub/chat/exit/' + roomId, {}, JSON.stringify({
+											roomid: roomId,
+											userid: closedName,
+											sessionId: localId,
+											type: 'exit'
+										}));
+									}
+									// 접속 해제 시 peerList, userList에서 끊긴 id 제외
+									calleePeerList = calleePeerList.filter(peer => peer[2] != users[i].id);
+									userList = userList.filter(user => user.id != users[i].id);
+									userLength = userList.length;
+									console.log("calleePeerList after caller connection closed: ", calleePeerList);
+									console.log("userList after caller connection closed: ", userList);
+									resizeVideo();
+								});
+							}
+							console.log("생성된 calleePeerList: ", calleePeerList)
+							return;
+						}
+
+						let callerPeer = new SimplePeer({
+							initiator: true,
+							trickle: true,
+							stream: localStream
+						});
+						//오퍼 리스트에 저장
+						callerPeerList.push([callerPeer, localId, remoteId]);
+
+						callerPeer.on('connect', () => {
+							console.log('connection established');
+							resizeVideo();
+						});
+						callerPeer.on('stream', (stream) => {
+							console.log("stream from callee received");
+							let video = document.createElement("video");
+							let videoWrap = document.createElement("div");
+							// 상대방 졸음 판단
+							let alert = document.createElement("div")
+							video.setAttribute('id', remoteId);
+							videoWrap.setAttribute('class', 'video-wrap');
+							video.autoplay = true;
+							videoWrap.append(video);
+							// 상대방 졸음 판단
+							alert.setAttribute("class", "warning");
+							videoWrap.append(alert);
+							$('.video-area').append(videoWrap);
+							video.srcObject = new MediaStream(stream.getTracks());
+						});
+						callerPeer.on('close', () => {
+
+							// remove corresponding video tag and send exit message
+							// execute only once
+							if (document.getElementById(remoteId) != null) {
+								document.getElementById(remoteId).parentElement.remove();
+								//document.getElementById(remoteId).remove();
+								// find the name of corresponding remoteId
+								let closedMember = findName(remoteId);
+								console.log("closedMember: ", closedMember);
+								stomp.send('/pub/chat/exit/' + roomId, {}, JSON.stringify({
+									roomid: roomId,
+									userid: closedMember,
+									sessionId: localId,
+									type: 'exit'
+								}));
+								// 접속 해제 시 peerList, userList에서 끊긴 id 제외
+								callerPeerList = callerPeerList.filter(peer => peer[2] != remoteId);
+								userList = userList.filter(user => user.id != remoteId);
+								userLength = userList.length;
+								console.log("after connection closed: ", callerPeerList, userList, userLength);
+								resizeVideo();
+							}
+						});
+						callerPeer.on('error', (e) => {
+							console.log("connection error: ", e);
+						});
+
+						callerPeer.on('data', (binaryData) => {
+							let imgBlob = new Blob([binaryData], {type: 'image/png'});
+							document.getElementById('receivedImg').src = URL.createObjectURL(imgBlob);
+						});
+
+						// 마지막으로 접속한 세션으로 offer를 보낸다
+						callerPeer.on('signal', (data) => {
+							stomp.send(
+								"/pub/room/offer/" + roomId, {},
+								JSON.stringify({
+									from: localId,
+									to: remoteId,
+									sdp: data,
+									roomid: roomId,
+									roomhistorynum: roomHistoryNum
+								})
+							)
+						});
+					});
+					//subscribe to answer channel
+					stomp.subscribe("/sub/room/answer/" + roomId, (answer) => {
+						answer = JSON.parse(answer.body);
+						//자신에게 온 답변만 받는다.
+						if (answer.from === localId && answer.to != localId) return;
+						console.log("valid answer - proceeding connection...");
+
+						//연결이 되면 더이상 최종 signal을 보내지 않는다.
+						console.log("answer: ", answer);
+						// if (answer.sdp.renegotiate) {
+						//     return;
+						// }
+						//받은 answer의 sdp를 통하여 remote와 연결 시도s
+						callerPeerList.forEach((peer) => {
+							if (peer[1] === answer.to && peer[2] === answer.from) {
+								peer[0].signal(answer.sdp);
+								return false;
+							}
+						});
+						console.log('callerPeerlist after final signal: ', callerPeerList);
+					});
+
+					//subscribe to offer channel
+					stomp.subscribe("/sub/room/offer/" + roomId, (offer) => {
+						offer = JSON.parse(offer.body);
+						roomHistoryNum = offer.roomhistorynum;
+						// 자신이 보낸 오퍼는 받지 않는다.
+						// 자신에게 오지 않은 오퍼는 받지 않는다.
+						if (offer.from === localId || offer.to != localId) return;
+
+						console.log("valid offer - sending answer...");
+
+						// offer받은 sdp로 연결 시도
+						calleePeerList.forEach((peer) => {
+							if (peer[1] === offer.to && peer[2] == offer.from) {
+								peer[0].signal(offer.sdp);
+								return false;
+							}
+						})
+					});
+
+					//4. subscribe(path, callback)으로 메세지를 받을 수 있음
+					stomp.subscribe("/sub/chat/room/" + roomId, function (chat) {
+						let content = JSON.parse(chat.body);
+						console.log(content);
+
+						let writer = content.userid;
+						let type = content.type;
+						let sessionid = content.sessionid;
+						console.log("sessionId: ", sessionid);
+						console.log("messageType: ", type);
+						let str = '';
+
+						if (sessionid === localId && type == null) {
+							str = "<div class='col-6' style='align-self: flex-end;'>";
+							str += "<div class='alert alert-secondary'>";
+							str += "<b>" + writer + " : " + content.message + "</b>";
+							str += "</div></div>";
+						}
+						else if (sessionid !== localId && type == 'enter') {
+							str = "<div class='col-6' style='align-self: center;'>";
+							str += "<div class='alert alert-primary'>";
+							str += "<b>" + "zaam : " + content.message + "</b>";
+							str += "</div></div>";
+						} else if (sessionId !== localId && type == 'exit') {
+							str = "<div class='col-6' style='align-self: center;'>";
+							str += "<div class='alert alert-primary'>";
+							str += "<b>" + "zaam : "+ content.message + "</b>";
+							str += "</div></div>";
+						}
+						else if (type == null || type == 'presentation') {
+							str = "<div class='col-6'>";
+							str += "<div class='alert alert-warning'>";
+							str += "<b>" + writer + " : " + content.message + "</b>";
+							str += "</div></div>";
+						}
+						$("#msgArea").append(str);
+					});
+
+					//발표모드 채널에 subscribe
+					stomp.subscribe("/sub/presentation/" + roomId, function (presenter) {
+						console.log('presenter: ', presenter.body);
+						let presenterId = JSON.parse(presenter.body).presenter;
+						let presentover = JSON.parse(presenter.body).presentover;
+						if (presentover) {
+							console.log('presentation given by ' + presenterId + ' is over');
+							$('#presentation-btn').css('display', 'block');
+							resizeVideo();
+							return;
+						}
+						console.log('presenter: ', presenter);
+						$('#' + presenterId).css({ 'grid-column': 'span 5', 'grid-row': 'span 6', 'order': 1 });
+						$('#' + presenterId).siblings().css({ 'grid-column': 'span 1', 'grid-row': 'span 1', 'order': 2 });
+						$('.video-wrap').css('pointer-events', 'none');
+						$('#presentation-btn').css('display', 'none');
+
+						setTimeout(function () {
+							$('#' + presenterId).parent().css({ 'grid-column': 'span 5', 'grid-row': 'span 6', 'order': 1 });
+							$('#' + presenterId).parent().siblings().css({ 'grid-column': 'span 1', 'grid-row': 'span 1', 'order': 2 });
+							if (presenterId == localId) {
+								$('#localVid').parent().css({ 'grid-column': 'span 5', 'grid-row': 'span 6', 'order': 1 });
+								$('#localVid').parent().siblings().css({ 'grid-column': 'span 1', 'grid-row': 'span 1', 'order': 1 });
+							}
+						}, 500);
+						$('.video-area').css('opacity', 0);
+						setTimeout(function () {
+							$('.video-area').css('opacity', 1)
+						}, 1000);
+					});
+
+					// 상대방 졸음 판단
+					stomp.subscribe("/sub/sleepshow/" + roomId, function (sleepInfo) {
+						sleepInfo = JSON.parse(sleepInfo.body);
+						let sleepId = sleepInfo.sleepid;
+						let sleepOver = sleepInfo.sleepover
+						console.log("슬립 판단 전")
+						if (!sleepOver) {
+
+							$('#' + sleepId).parent().addClass('show-warning');
+						} else {
+							$('#' + sleepId).parent().removeClass('show-warning');
+						}
+					});
+
+					stomp.subscribe("/sub/history/" + roomId, function(data) {
+						roomHistoryNum = JSON.parse(data.body);
+						console.log("roomHistoryNum: ", roomHistoryNum);
+						createUserHistory();
+					});
+
+
+					//send enter message (path, header, message)로 메세지를 보낼 수 있음
+					stomp.send('/pub/chat/enter/' + roomId, {}, JSON.stringify({
+						roomid: roomId,
+						userid: loginId,
+						sessionId: localId,
+						type: 'enter'
+					}))
+
+					//join message 보내기
+					stomp.send(
+							"/pub/room/join/" + roomId, {},
+							JSON.stringify({ who: localId, name: loginId })
+					);
+				});
+
+				$("#button-send").on("click", function (e) {
+
+					let msg = document.getElementById("msg");
+
+					console.log(loginId + ":" + msg.value);
+					stomp.send('/pub/chat/message/' + roomId, {}, JSON.stringify({
+						roomid: roomId,
+						message: msg.value,
+						userid: loginId,
+						sessionid: localId}));
+					msg.value = '';
+				});
+				$('#presentation-btn').on('click', function () {
+					$('.presentation-modal').addClass('show-modal');
+				});
+				$('#agree').on('click', function () {
+					stomp.send('/pub/presentation/' + roomId, {}, JSON.stringify({ presenter: localId, presentover: false }));
+					stomp.send('/pub/chat/message/' + roomId, {}, JSON.stringify({
+						roomid: roomId,
+						message: '발표를시작합니다.',
+						sessionId: localId,
+						type: 'presentation',
+						userid: loginId }));
+					$('.presentation-modal').removeClass('show-modal');
+					$('#presentation-btn').css('display', 'none');
+					$('#presentation-end-btn').css('display', 'block');
+				});
+				$('#refuse').on('click', function () {
+					$('.presentation-modal').removeClass('show-modal');
+				});
+				$('#presentation-end-btn').on('click', function () {
+					stomp.send('/pub/presentation/' + roomId, {}, JSON.stringify({ presenter: localId, presentover: true }));
+					stomp.send('/pub/chat/message/' + roomId, {}, JSON.stringify({
+						roomid: roomId,
+						sessionId: localId,
+						message: '발표를 종료합니다.',
+						type: 'presentation',
+						userid: loginId }));
+					$(this).css('display', 'none');
+					$('#presentation-btn').css('display', 'block');
+					resizeVideo();
+				});
+				$('#sendSleepSignal').on('click', function () {
+					stomp.send('/pub/sleepshow/' + roomId, {}, JSON.stringify({
+						sleepid: localId,
+						sleepover: false
+					}));
+				})
+				$('#sendSleepOverSignal').on('click', function () {
+					stomp.send('/pub/sleepshow/' + roomId, {}, JSON.stringify({
+						sleepid: localId,
+						sleepover: true
+					}));
+				})
+				$('#takePicture').on('click', function() {
+					stomp.send('/pub/sleepPic/' + roomId, {}, JSON.stringify({
+						sleepid: localId
+					}));
+					sleepPic();
+
+				})
+
+			}
+//메모
+			$('#memoArea').on('keyup', function () {
+				let memoContent = $('#memoArea').val();
+				//console.log("memoContent", memoContent);
+				
+				$.ajax({
+					url: "/member/updateMemo",
+					method: 'post',
+					data: {"memoContent": memoContent, "roomid": roomId},
+					success: function(){
+					},
+					error: function(err) {
+						console.error(err);
+					}
+				});
+				
+			});
+			
+			function selectMemo() {
+				$.ajax({
+					url: "/member/selectMemo",
+					method: 'post',
+					data: {"roomid": roomId},
+					success: function(memo){
+						console.log("memo: ", memo);
+						if(memo.length > 0) {
+							console.log("작성중인 메모가 있습니다");
+							$("#memoArea").val(memo);
+						}
+						else {
+							createMemo(roomId);
+						}
+					},
+					error: function(err) {
+						console.error(err);
+					}
+				});
+			
+			}
+			
+			function createMemo() {
+				$.ajax({
+					url:"/member/createMemo",
+					method: 'post',
+					data: {"roomid": roomId},
+					success: function(result) { //controller에서 리턴된 값
+						if (result > 0) {
+							console.log("새로운 메모를 생성하였습니다");
+						}
+						else {
+							console.log("메모 생성에 실패했습니다");
+						}
+					},
+					error: function(err) {
+						console.error(err);
+					}
+				});
+				
+			}
+
+			$("#screenShare").on("click", async function (e) {
+				try {
+					displayStream = await navigator.mediaDevices.getDisplayMedia({
+						video: {
+							cursor: "always"
+						},
+						audio: true
+					});
+					localVid.srcObject = new MediaStream(displayStream.getVideoTracks());
+					displayStreamTrack = displayStream.getVideoTracks()[0];
+					console.log("old Stream Track : ", localStreamTrack);
+					console.log("old Stream : ", videoStream);
+
+					console.log("new Stream Track: ", displayStreamTrack);
+					console.log("new Stream : ", displayStream);
+
+					callerPeerList.forEach(peer => {
+						if (peer[1] === localId) {
+							peer[0].replaceTrack(localStreamTrack, displayStreamTrack, localStream);
+						}
+					})
+					calleePeerList.forEach(peer => {
+						if (peer[1] === localId) {
+							peer[0].replaceTrack(localStreamTrack, displayStreamTrack, localStream);
+						}
+					})
+
+					document.getElementById("screenShare").style.display = 'none';
+					document.getElementById("screenShareEnd").style.display = 'block';
+				} catch (ex) {
+					console.log("Error occurred", ex);
+				}
+			});
+			$("#screenShareEnd").on("click", async function (e) {
+				await navigator.mediaDevices.getUserMedia({
+					video: true,
+					audio: true
+				}).then((stream) => {
+					localVid.srcObject = videoStream;
+					console.log("old Stream Track : ", localStreamTrack);
+					console.log("old Stream : ", videoStream);
+
+					console.log("new Stream Track: ", displayStreamTrack);
+					console.log("new Stream : ", displayStream);
+
+					callerPeerList.forEach(peer => {
+						if (peer[1] === localId) {
+							peer[0].replaceTrack(displayStreamTrack, localStreamTrack, localStream);
+						}
+					})
+					calleePeerList.forEach(peer => {
+						if (peer[1] === localId) {
+							peer[0].replaceTrack(displayStreamTrack, localStreamTrack, localStream);
+						}
+					})
+					document.getElementById("screenShareEnd").style.display = 'none';
+					document.getElementById("screenShare").style.display = 'block';
+				}).catch(function (e) {
+					alert(e.name);
+				})
+			});
+
+			// Element 에 style 한번에 오브젝트로 설정하는 함수 추가
+			Element.prototype.setStyle = function (styles) {
+				for (var k in styles) this.style[k] = styles[k];
+				return this;
+			};
+
+			$('.inviteRoom').on('click', function () {
+				inviteRoom($(this).attr('userid'), $(this).attr('email'));
+			});
+
+			function inviteRoom(userid, email) {
+				let params = {
+					email: email,
+					message: window.location.href,
+					userid: userid,
+					roomname: roomName
+				};
+				emailjs
+					.send("ZAAM", "template_4nzn7gx", params)
+					.then(function (res) {
+						alert("초대 메일을 전송했습니다.");
+					});
+			}
+
+			$('#emailCertifi').on('click', function () {
+				emailRandom = Math.floor(Math.random() * 100001);
+				emailCertifi(emailRandom, document.getElementBy('emailCerti'));
+			});
+
+			function emailCertifi(randomNumber, email) {
+				var params = {
+					email: email,
+					message: "인증 번호는 " + randomNumber + "입니다.",
+					userid: loginId,
+				};
+				emailjs
+					.send("ZAAM", "template_z7wu9n9", params)
+					.then(function (res) {
+						alert("초대 메일을 전송했습니다.");
+					});
+			}
+
+			$('#numberCheck').on('click', function () {
+				if (emailNumber.value == emailRandom) {
+					alert('인증번호가 일치합니다.');
+				} else {
+					alert('인증번호가 일치하지 않습니다.');
+				}
+			})
+
+			function findName(id) {
+				let foundName = null;
+				userList.forEach((user) => {
+					if (user.id === id) {
+						foundName = user.name;
+					}
+				});
+				console.log("foundName: ", foundName);
+				return foundName;
+			}
+
+			function resizeVideo() {
+				$('.video-wrap').off();
+				$('.video-wrap').css('pointer-events', 'auto');
+				// 유저 수에 따른 화면 크기 조정
+				$('.video-area').css('opacity', 0);
+				setTimeout(function () {
+					if (userLength > 4) {
+						$('.video-wrap').css({ 'grid-column': 'span 2', 'grid-row': 'span 3', 'order': 1 });
+					} else if (userLength > 2) {
+						$('.video-wrap').css({ 'grid-column': 'span 3', 'grid-row': 'span 3', 'order': 1 });
+					} else if (userLength > 1) {
+						$('.video-wrap').css({ 'grid-column': 'span 3', 'grid-row': 'span 6', 'order': 1 });
+					} else {
+						$('.video-wrap').css({ 'grid-column': 'span 6', 'grid-row': 'span 6', 'order': 1 });
+					}
+				}, 500);
+				setTimeout(function () {
+					$('.video-area').css('opacity', 1)
+				}, 1000);
+				// 화면 클릭시 확대되는 이벤트리스너 추가
+				$('.video-wrap').on('click', function (e) {
+					let $self = $(this);
+					if ($self.hasClass('presentation-vid')) {
+						$self.removeClass('presentation-vid');
+						$('.video-area').css('opacity', 0);
+						setTimeout(function () {
+							if (userLength > 4) {
+								$('.video-wrap').css({ 'grid-column': 'span 2', 'grid-row': 'span 3', 'order': 1 });
+							} else if (userLength > 2) {
+								$('.video-wrap').css({ 'grid-column': 'span 3', 'grid-row': 'span 3', 'order': 1 });
+							} else if (userLength > 1) {
+								$('.video-wrap').css({ 'grid-column': 'span 3', 'grid-row': 'span 6', 'order': 1 });
+							} else {
+								$('.video-wrap').css({ 'grid-column': 'span 6', 'grid-row': 'span 6', 'order': 1 });
+							}
+						}, 500);
+						setTimeout(function () {
+							$('.video-area').css('opacity', 1)
+						}, 1000);
+					} else {
+						$('.video-wrap').removeClass('presentation-vid');
+						$self.addClass('presentation-vid');
+						console.log("self: : ", $self);
+						setTimeout(function () {
+							$self.css({ 'grid-column': 'span 5', 'grid-row': 'span 6', 'order': 1 })
+							$self.siblings().css({ 'grid-column': 'span 1', 'grid-row': 'span 1', 'order': 2 });
+						}, 500);
+						$('.video-area').css('opacity', 0);
+						setTimeout(function () {
+							$('.video-area').css('opacity', 1)
+						}, 1000);
+					}
+				});
+			}
+			// 졸음도 체크
+			async function main() {
+				const faces = await model.estimateFaces({
+					input: localVid
+				});
+				if (faces.length > 0) {
+					faces.forEach(face => {
+						const keypoints = face.scaledMesh;
+						for (let i = 0; i < keypoints.length; i++) {
+							const [x, y, z] = keypoints[i];
+							if (i == 145) {
+								eye = y;
+							}
+							if (i == 158) {
+								eye2 = eye - y;
+								if (eye2 > max) {
+									max = eye2;
+								}
+								if (eye2 < max * 0.4) {
+									count = count + 1;
+									eyeCheck()
+									if (count > 2 && !(videoSleep.classList == "video-wrap show-warning")) {
+										videoSleep.classList.add('show-warning')
+										sleepSignal = true;
+										console.log("슬립시작 보낸다요")
+										$('#sendSleepSignal').click();
+										// sleepCheck.style.background = "red";
+									} else if (count >= 10) {
+										sle = false;
+										// 졸음 판단
+										modalNotice.click()
+										// color = "red"
+										count = 0;
+										eyeCheck()
+									}
+								} else if (count > 0) {
+									count = count - 1;
+									eyeCheck()
+									if (count <= 2 && videoSleep.classList == "video-wrap show-warning") {
+										videoSleep.classList.remove('show-warning')
+									}
+								}
+								if(count <=2 && sleepSignal == true){
+									sleepSignal = false;
+									console.log("슬립오버 보낸다요")
+									$('#sendSleepOverSignal').click();
+								}
+								console.log("count: {}", count)
+
+								if (count > periodCount) {
+									count = 0;
+									eyeCheck()
+
+									sleepCheck.style.background = "#6665ee";
+								}
+							}
+						}
+					})
+				}
+			}
+			async function eyeContactGame() {
+				const faces = await model2.estimateFaces({
+					input: localVid
+				});
+				if (faces.length > 0) {
+					faces.forEach(face => {
+						const keypoints = face.scaledMesh;
+						for (let i = 0; i < keypoints.length; i++) {
+							const [x, y, z] = keypoints[i];
+							if (i == 145) {
+								eye = y;
+							}
+							if (i == 158) {
+								eye2 = eye - y;
+								if (eye2 < max * 0.4) {
+									count = count + 1;
+									if (count >= 3) {
+										clearInterval(eyeLandInterval)
+										modalSleep_content.style.width = "350px"
+										btnClose.click()
+										modalNotice3_2.click()
+									}
+								} else if (count > 0) {
+								count = count - 1;
+								}
+								console.log("eyeContactmax:{}",max)
+								console.log("eyeContactCount: {}", count)
+							}
+						}
+					})
+				}
+			}
+			function startStretched() {
+				posenet.load().then((model) => {
+					// 이곳의 model과 아래 predict의 model은 같아야 한다.
+					// video.onloadeddata = (e) => {
+					//비디오가 load된 다음에 predict하도록. (안하면 콘솔에 에러뜸)
+					canvas.width = localVid.clientWidth; //캔버스와 비디오의 크기를 일치시킴
+					canvas.height = localVid.clientHeight;
+					localVid.width = localVid.clientWidth;
+					localVid.height = localVid.clientHeight;
+					console.log("localVid:{}", localVid)
+
+					predict();
+					function predict() {
+						//frame이 들어올 때마다 estimate를 해야하니 함수화 시킴
+						model.estimateSinglePose(localVid).then((pose) => {
+							canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height)
+							drawKeypoints(pose.keypoints, 0.6, context); //정확도
+							drawSkeleton(pose.keypoints, 0.6, context);
+							le = pose.keypoints[7].position; //왼쪽 팔꿈치
+							ls = pose.keypoints[5].position; //왼쪽 어깨
+							rs = pose.keypoints[6].position; //오른쪽 어깨
+							if (le.y < ls.y && le.x > ls.x) {
+								x1 = le.x - ls.x;
+								y1 = - (le.y - ls.y);
+								d1 = Math.sqrt(Math.pow(x1, 2) + Math.pow(y1, 2))
+
+								if (d1 > ((ls.x - rs.x) / 2)) {
+									rate = y1 / d1
+									angle = Math.asin(rate) * 180 / Math.PI;
+									if (angle >= angleCut && boo == false) {
+										boo = true;
+										countPix = 100 + "%"
+										countDis = 100;
+										color = "aqua"
+										this.timeoutId = setTimeout(() => {
+											sleepPic();
+											color = "red"
+											canvas.style.zIndex = -1;
+											stretchedPre = false;
+											modalNotice4_1.click()
+
+										}, 5000);
+										sleepCheck.classList.toggle("sleepCheck");
+
+									} else if (angle < angleCut && boo == true) {
+										clearTimeout(this.timeoutId)
+										boo = false;
+										color = "red"
+										countPix = Math.floor(angle * 100 / angleCut) + "%"
+										countDis = angle * 100 / angleCut
+										sleepCheck.classList.toggle("sleepCheck");
+									} else if (angle < angleCut) {
+										countPix = Math.floor(angle * 100 / angleCut) + "%"
+										countDis = angle * 100 / angleCut
+									}
+									const arc_length = arc.getTotalLength();
+									const step = arc_length / (100);
+									const value = (countDis) * step;
+									arc.style.strokeDasharray = `${value} ${arc_length - value}`;
+								}
+							}
+						})
+						if (stretchedPre == true) {
+							requestAnimationFrame(predict); //frame이 들어올 때마다 재귀호출
+						}
+					}
+				});
+			}
+			
+			function sleepPic() {
+				html2canvas(localVid).then(canvas => {
+					url = canvas.toDataURL(imgType);
+					sleepImg.src = url;
+
+					let imageData = url.replace(/^data:image\/[a-z]+;base64,/, "");
+					$.ajax({
+						type: 'POST',
+						url: '/history/sendpic',
+						data: {'imageData': imageData, 'roomid': roomId, 'roomhistorynum': roomHistoryNum},
+						cache: false,
+						enctype: 'multipart/form-data',
+						success: function() {
+							console.log('sleepPic sent');
+						},
+						error: function(e) {
+							console.log(e);
+						}
+					});
+
+				})
+			}
+			function sleepCheckRe() {
+				if (sle == false) {
+					localVid.addEventListener("loadeddata", lander())
+				}
+			}
+			//tensorflow에서 제공하는 js 파트
+
+			const boundingBoxColor = "red";
+			const lineWidth = 2;
+
+			function toTuple({ y, x }) {
+				return [y, x];
+			}
+
+			function drawPoint(ctx, y, x, r, color) {
+				ctx.beginPath();
+				ctx.arc(x, y, r, 0, 2 * Math.PI);
+				ctx.fillStyle = color;
+				ctx.fill();
+			}
+
+			function drawSegment([ay, ax], [by, bx], color, scale, ctx) {
+				ctx.beginPath();
+				ctx.moveTo(ax * scale, ay * scale);
+				ctx.lineTo(bx * scale, by * scale);
+				ctx.lineWidth = lineWidth;
+				ctx.strokeStyle = color;
+				ctx.stroke();
+			}
+
+			function drawSkeleton(keypoints, minConfidence, ctx, scale = 1) {
+				const adjacentKeyPoints = posenet.getAdjacentKeyPoints(keypoints, minConfidence);
+
+				adjacentKeyPoints.forEach((keypoints) => {
+					drawSegment(toTuple(keypoints[0].position), toTuple(keypoints[1].position), color, scale, ctx);
+				});
+			}
+
+			function drawKeypoints(keypoints, minConfidence, ctx, scale = 1) {
+				for (let i = 0; i < keypoints.length; i++) {
+					const keypoint = keypoints[i];
+
+					if (keypoint.score < minConfidence) {
+						continue;
+					}
+
+					const { y, x } = keypoint.position;
+					drawPoint(ctx, y * scale, x * scale, 3, color);
+				}
+			}
+
+			//face eye chart
+			function eyeCheck() {
+				countPix = count * 10 + "%"
+				sleepCheck.style.width = `${countPix}`;
+			}
+
+			//얼굴 점 위치
+			async function lander() {
+				model = await faceLandmarksDetection.load(
+					faceLandmarksDetection.SupportedPackages.mediapipFacemesh
+				)
+				landInterval = setInterval(main, 1000);
+			}
+			async function eyeContactLander() {
+				model2 = await faceLandmarksDetection.load(
+					faceLandmarksDetection.SupportedPackages.mediapipFacemesh
+				)
+				eyeLandInterval = setInterval(eyeContactGame, 100);
+			}
+			function videoOff() {
+				let videoTrack = localStream.getTracks().find(track => track.kind === 'video');
+				if (videoTrack.enabled) {
+					videoTrack.enabled = false;
+					toggleButton.classList.remove('active');
+					saveButton.disabled = true;
+				} else {
+					videoTrack.enabled = true;
+					toggleButton.classList.add('active');
+					saveButton.disabled = false;
+				}
+			}
+			function micOff() {
+				let audioTrack = localStream.getTracks().find(track => track.kind === 'audio');
+				if (audioTrack.enabled) {
+					audioTrack.enabled = false;
+					micButton.classList.remove('active');
+				} else {
+					audioTrack.enabled = true;
+					micButton.classList.add('active');
+				}
+			}
+			//Record
+			function Record() {
+				if (saveButton.className == 'active') {
+					mediaRecorder.stop()
+					let blob = new Blob(parts, {
+						type: "video/webm"
+					});
+					let url = URL.createObjectURL(blob);
+					let a = document.createElement("a");
+					document.body.appendChild(a);
+					a.style = "display: none";
+					a.href = url;
+					a.download = `recording_${new Date()}.webm`;
+					a.click();
+					setTimeout(() => {
+						document.body.removeChild(a);
+					}, 100);
+					$('.video-wrap')[0].classList.toggle('localBox');
+					saveButton.classList.remove('active')
+				} else {
+					let stream = localVid.srcObject;
+					mediaRecorder = new MediaRecorder(stream);
+					mediaRecorder.start(100);
+					mediaRecorder.ondataavailable = function (e) {
+						parts.push(e.data);
+					}
+					console.log("video-wrap array: ", document.getElementsByClassName('video-wrap'));
+					saveButton.classList.add('active')
+				}
+			}
+			function leave() {
+				let f = document.createElement('form');
+
+				let obj;
+				obj = document.createElement('input');
+				obj.setAttribute('type', 'hidden');
+				obj.setAttribute('name', 'roomhistorynum');
+				obj.setAttribute('value', roomHistoryNum);
+
+				let obj2;
+				obj2 = document.createElement('input');
+				obj2.setAttribute('type', 'hidden');
+				obj2.setAttribute('name', 'userLength');
+				obj2.setAttribute('value', userLength);
+
+				f.appendChild(obj);
+				f.appendChild(obj2);
+				f.setAttribute('method', 'post');
+				f.setAttribute('action', '../room/roomList');
+				document.body.appendChild(f);
+				f.submit();
+
+				sleepAlert.classList.toggle('localContent');
+				sleepAlert2.classList.toggle('heart');
+				document.querySelector('#cube').classList.toggle('cube');
+				let sleepChange = document.querySelectorAll('.sleepPhoto');
+				html2canvas(localVid).then(canvas => {
+					let url = canvas.toDataURL(imgType);
+					for (let i = 0; i < sleepChange.length; i++) {
+						if (i % 2 == 1) {
+							// sleepChange[i].style.background = "url('../images/sleepCheck.png')"
+							// sleepChange[i].style.backgroundSize = "cover";
+							// sleepChange[i].style.backgroundColor ="#999";
+						} else {
+							sleepChange[i].style.background = `url("${url}")`;
+							sleepChange[i].style.backgroundSize = "cover"
+						}
+					}
+				})
+			}
+			//1단계 졸음 확인
+			modalNotice.addEventListener("click", function () {
+				modalSleep.classList.add("active");
+				sleepPic();
+
+				//주변 정리
+				document.querySelector('.side-container').classList.remove('side-out');
+				document.querySelector('.memo-container').classList.remove('side-out');
+				document.querySelector('.invite-container').classList.remove('side-out');
+
+				//추가
+				let counterCheck = 5;
+				checkCount.innerHTML = counterCheck;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					if (counterCheck >= 0) {
+						checkCount.innerHTML = counterCheck;
+					}
+					if (counterCheck < 0) {
+						btnClose.click();
+						clearInterval(checkSleepLo);
+						clearInterval(landInterval);
+						setTimeout(function () {
+							modalNotice2.click();
+						}, 500);
+					}
+				}, 1000);
+			});
+
+			//2단계 졸음 깨우기
+			modalNotice2.addEventListener("click", function () {
+				//모달 시작
+				modalSleep.classList.add("active");
+				//모달 다음 멘트 준비
+				btnClose.innerHTML = "Alarm Off";
+				modalSleepBody.src = "../images/sleep/dangerous.png";
+				sleepMent.innerHTML = "넌 너무 많이 잔 죄 ";
+				wakeUpSound.play()
+				//다음 스테이지 시작
+				clearInterval(landInterval);
+
+				modalNotice2.click();
+
+				//슬림시간 측정
+				sleepStartDate = new Date();
+
+				//상대방에게 시그널 보내기
+				$('#sendSleepSignal').click();
+
+				//마우스 이벤트
+				btnClose.addEventListener("mouseover", gaggingPlay);
+
+				//카운트 다운
+				let counterCheck = 20;
+				checkCount.innerHTML = counterCheck;
+
+
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					checkCount.innerHTML = counterCheck;
+					if (counterCheck < 0) {
+						btnClose.removeEventListener("mouseover", gaggingPlay);
+						btnClose.click();
+						videoSleep.classList.remove('show-warning')
+						modalNotice2_1.click();
+					}
+				}, 1000);
+			});
+
+			modalNotice2_1.addEventListener('click', function(){
+				modalSleepBody.src = "../images/sleep/fail.jpg";
+				sleepMent.innerHTML = "";
+				btnClose.style.display = "none";
+				modalSleep.classList.add('active');
+
+				let counterCheck = 3;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					if (counterCheck < 0) {
+						btnClose.click();
+						setTimeout(function () {
+							modalNotice3.click();
+						}, 500);
+					}
+				}, 1000);
+				
+			})
+			//3단계 깨우기 아이컨택 준비
+			modalNotice3.addEventListener('click', function () {
+				//모달 시작
+				modalSleep.classList.add("active");
+				//모달 다음 멘트 준비
+				modalSleepBody.src = "../images/sleep/eyecontact.jpeg";
+				sleepMent.innerHTML = "아이컨택을 시작합니다 ";
+				let counterCheck = 5;
+				checkCount.innerHTML = counterCheck;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					checkCount.innerHTML = counterCheck;
+					if (counterCheck < 0) {
+						btnClose.click()
+						modalNotice3_1.click()
+					}
+
+				}, 1000);
+			})
+
+			//3단계 아이컨택 시작
+			modalNotice3_1.addEventListener('click', function () {
+				modalSleep.classList.add("active");
+				checkCount.innerHTML = "";
+				btnClose.style.display = "none";
+				sleepMent.innerHTML = "";
+				modalSleepBody.src = "../images/sleep/eyecontact2.gif";
+				modalSleep_content.style.width = "70%";
+				mainNav.style.zIndex = "0";
+				sleepPic();
+				localVid.addEventListener("loadeddata", eyeContactLander())
+			})
+
+			//성공 판단
+			modalNotice3_2.addEventListener('click', function(){
+				modalSleepBody.src = "../images/sleep/fail.jpg";
+				sleepMent.innerHTML = "";
+				btnClose.style.display = "none";
+
+				modalSleep.classList.add('active');
+				let counterCheck = 3;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					if (counterCheck < 0) {
+						btnClose.click();
+						setTimeout(function () {
+							modalNotice4.click();
+						}, 500);
+					}
+				}, 1000);
+				
+			})
+
+			//4단계 기지개 준비
+			modalNotice4.addEventListener('click', function(){
+				//모달 시작
+				modalSleep.classList.add("active");
+				//모달 다음 멘트 준비
+				modalSleepBody.src = "../images/sleep/stra.png";
+				sleepMent.innerHTML = "기지개를 시작합니다 ";
+				checkCount.innerHTML = "";
+				btnClose.style.display = "none";
+				modalSleep_content.style.width ="50%"
+				let counterCheck = 8;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					if (counterCheck == 4){
+						sleepMent.innerHTML = " ";
+						modalSleepBody.src = "../images/sleep/countdown.gif";
+						stretchedPre = true;
+						startStretched()
+					} else if (counterCheck < 0) {
+						btnClose.click()
+						sleepGameOver = true;
+					}
+
+				}, 1000);
+			})
+			//4단계 기지개 판단
+			modalNotice4_1.addEventListener('click', function(){
+				//모달 시작
+				modalSleep.classList.add("active");
+				//모달 다음 멘트 준비
+				modalSleepBody.src = "../images/sleep/success.gif";
+				sleepMent.innerHTML = "";
+				btnClose.style.display = "none";
+				// modalSleep_content.style.width ="70%"
+				let counterCheck = 3;
+				checkSleepLo = setInterval(function () {
+					counterCheck--;
+					if (counterCheck <= 0) {
+						btnClose.click()
+					}
+				}, 1000);
+			})
+			function gaggingPlay() {
+
+				if (ment.length > gaggingCount) {
+					modalSleepBody.src = url;
+					if (url.length > 0) {
+						setTimeout(function () {
+							url = "";
+							sleepPic()
+						}, 1000)
+					}
+					sleepMent.innerHTML = ment[gaggingCount];
+					btnClose.style.display = "none";
+					setTimeout(function () {
+						gaggingCount++;
+						btnClose.style.display = "block";
+					}, 4000);
+				} else {
+				}
+			}
+			
+			btnClose.addEventListener("click", function () {
+				modalSleep.classList.remove("active");
+				//이미지 멘트 초기화
+				btnClose.innerHTML = "No";
+				modalSleepBody.src = "../images/sleep/sleep.gif";
+				sleepMent.innerHTML = "자니? ";
+				gaggingCount = 0;
+				btnClose.style.display = "block";
+				wakeUpSound.pause();
+				checkCount.innerHTML = "";
+
+				clearInterval(checkSleepLo);
+				clearInterval(nextLevel);
+				clearInterval(eyeLandInterval);
+
+				//캔버스 지우기
+				canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height)
+				//시간 재기
+				if (sleepStartDate != null && sleepGameOver == true) {
+					sleepGameOver = false;
+					sleepEndDate = new Date()
+					sleepTimeTime = Math.floor((sleepEndDate - sleepStartDate) / 1000)
+					console.log(sleepTimeTime + "초")
+					sendSleepTime();
+					sleepStartDate = ""
+					$('#sendSleepOverSignal').click();
+					btnClose.removeEventListener("mouseover", gaggingPlay);
+					mainNav.style.zIndex = "1";
+				}
+				videoSleep.classList.remove('show-warning')
+			});
+
+			function sleepTimer() {
+
+			}
+			function sendSleepTime() {
+				$.ajax({
+					url: '/history/sleepHistory',
+					type: 'post',
+					data: { roomid: roomId,
+						roomhistorynum: roomHistoryNum,
+						sleeptimetime: sleepTimeTime
+					},
+					dataType: 'text',
+					success: function (e) {
+						console.log(e);
+					},
+					error: function (e) {
+						console.log(e);
+					}
+				});
+			}
+			function sendSleepTimeZone() {
+				$.ajax({
+					url: '/history/sleepTimeHistory',
+					type: 'post',
+					data: { 
+						roomhistorynum: roomHistoryNum,
+					},
+					dataType: 'text',
+					success: function (e) {
+						console.log(e);
+					},
+					error: function (e) {
+						console.log(e);
+					}
+				});
+			}
+
+			toggleButton.addEventListener('click', videoOff)
+			micButton.addEventListener('click', micOff)
+			saveButton.addEventListener('click', Record)
+
+			setUser();
+			sleepCheckRe();
+			resizeVideo();
+		});
+	</script>
+<style>
+</style>
+</head>
+
+<body>
+	<th:block th:fragment="content">
+		<div class="main-wrapper">
+			<!-- Navigation-->
+			<header id="header" class="d-flex align-items-center">
+				<div class="container">
+					<div class="d-flex justify-content-between align-items-center">
+						<div class="logo">
+							<h1>
+								<a th:href="@{/room/roomList}">ZAAM</a>
+							</h1>
+							<!-- Uncomment below if you prefer to use an image logo -->
+							<!-- <a href="index.html"><img src="assets/img/logo.png" alt="" class="img-fluid"></a>-->
+						</div>
+						<nav id="navbar" class="navbar">
+							<ul>
+								<li class="dropdown"><a href="#"><span>
+											<p th:text="|${#authentication.principal.username}의 스터디룸|"></p>
+
+									</span><i class="bi bi-chevron-down"></i></a>
+									<ul>
+										<li><a th:href="@{/history/history}">회의 기록 관리</a></li>
+										<li><a href="#">회원 정보 수정</a></li>
+										<li><a th:href="@{/member/logout}">로그아웃</a></li>
+									</ul> <i class="bi bi-list mobile-nav-toggle"></i></li>
+							</ul>
+						</nav>
+						<!-- .navbar -->
+					</div>
+				</div>
+			</header>
+			<div class="main-container" id="mainContainer">
+				<div class="video-container" id="videoContainer">
+					<div class="video-area">
+						<div class="video-wrap">
+							<video id="localVid" autoplay></video>
+							<canvas id="canvas"></canvas>
+							<!--상대방 졸음 판단-->
+							<div class="warning"></div>
+							<div class="skills-bar">
+								<div class="bar">
+									<div class="progress-line">
+										<span id="sleepCheck"></span>
+									</div>
+								</div>
+							</div>
+							<div id="heart"></div>
+						</div>
+					</div>
+					<div class="stream__actions">
+						<button id="toggle-cam" class="active">
+							<img class="chatFunctionBtn" src="../images/camera.svg">
+						</button>
+						<button id="mic-btn" class="active">
+							<img class="chatFunctionBtn" src="../images/mic.svg">
+						</button>
+						<button id="save-btn">
+							<img class="chatFunctionBtn" src="../images/save.svg">
+						</button>
+						<button id="screenShare">
+							<img class="chatFunctionBtn" src="../images/present_to_all.svg">
+						</button>
+						<button id="screenShareEnd" style="display: none;">공유중지</button>
+						<button id="presentation-btn">
+							<img class="chatFunctionBtn" src="../images/star.svg">
+						</button>
+						<button id="presentation-end-btn" style="display: none;">발표중지</button>
+						<button class="side-label" id="invite-btn" data-function="invite">
+							<img class="chatFunctionBtn" src="../images/person_add.svg">
+						</button>
+						<button class="side-label" id="chat-btn" data-function="chat">
+							<img class="chatFunctionBtn" src="../images/chat.svg">
+						</button>
+						<button class="side-label" id="memo-btn" data-function="memo">
+							<img class="chatFunctionBtn" src="../images/note.svg">
+						</button>
+						<button id="leave-btn" style="background-color: #FF5050; opacity: 0.8;"
+							th:onclick="|location.href='@{/room/roomList}'|">
+							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+								 viewBox="0 0 24 24">
+								<path
+										d="M16 10v-5l8 7-8 7v-5h-8v-4h8zm-16-8v20h14v-2h-12v-16h12v-2h-14z" />
+							</svg>
+						</button>
+					</div>
+				</div>
+				<div class="chat-container side-container">
+					<div class="chat-container-wrapper">
+						<div id="msgArea" class="col"></div>
+						<div id="chatArea">
+							<div class="chat-wrapper">
+								<textarea id="msg" style="resize: none;"></textarea>
+								<button class="btn btn-outline-secondary" type="button"
+									id="button-send">전송</button>
+							</div>
+						</div>
+					</div>
+					<span class="container-in" data-function="chat">▶</span>
+				</div>
+				<div class="memo-container side-container">
+					<div class="memo-container-wrapper">
+						<div class="memo-header"></div>
+						<div class="memo-content">
+							<textarea id="memoArea"></textarea>
+						</div>
+					</div>
+					<span class="container-in" data-function="memo">▶</span>
+				</div>
+				<div class="invite-container side-container">
+					<div class="invite-container-wrapper">
+						<div class="invite-header">
+						</div>
+						<div class="invite-content">
+							<div id="my_modal">
+								<table>
+									<tr th:each="memberList : ${memberList}">
+										<td th:text="${memberList.userid}"></td>
+										<td><input type="button" value="초대" class="inviteRoom"
+												   th:email="${memberList.email}" th:userid="${memberList.userid}"></td>
+									</tr>
+								</table>
+						</div>
+						</div>
+					</div>
+					<span class="container-in" data-function="invite">▶</span>
+				</div>
+			</div>
+		</div>
+		<div id="cube">
+			<div class="top"></div>
+			<div>
+				<span class="sleepPhoto" style="-i: 0;"></span> <span
+					class="sleepPhoto" style="-i: 1;"></span> <span class="sleepPhoto"
+					style="-i: 2;"></span> <span class="sleepPhoto" style="-i: 3;"></span>
+			</div>
+		</div>
+		<div class="presentation-modal">
+			<div class="presentation-modal-wrapper">
+				<h3 class="presentation-modal-header">모든 참여자와 화면을 공유합니다</h3>
+				<div class="presentation-modal-contents">
+					<button type="button" class="btn btn-primary" id="agree">예</button>
+					<button type="button" class="btn btn-danger" id="refuse">아니오</button>
+				</div>
+			</div>
+		</div>
+		<a class="modalSleep-notice" href="#none"></a>
+		<a class="modalSleep-notice2" href="#none"></a>
+		<a class="modalSleep-notice2-1" href="#none"></a>
+		<a class="modalSleep-notice3" href="#none"></a>
+		<a class="modalSleep-notice3-1" href="#none"></a>
+		<a class="modalSleep-notice3-2" href="#none"></a>
+		<a class="modalSleep-notice4" href="#none"></a>
+		<a class="modalSleep-notice4-1" href="#none"></a>
+		<div class="modalSleep">
+			<div class="modalSleep-content">
+				<div class="modalSleep-body">
+					<img th:src="@{/images/sleep/sleep.gif}">
+					<div class="checkCount">
+						<h2 id="sleepMent">
+							자니 ?
+							<h2 id="checkCount">5</h2>
+						</h2>
+					</div>
+				</div>
+				<a href="#none" class="btn-close-sleep">No</a>
+			</div>
+		</div>
+		<div id="sendSleepSignal"></div>
+		<div id="sendSleepOverSignal"></div>
+		<div id="takePicture"
+			style="position: fixed; top: 0; left: 0; width: 20px; height: 20px; background-color: black;"></div>
+<!--		<img id="receivedImg"-->
+<!--			style="position: fixed; top: 0; right: 0; width: 30px; height: 30px;">-->
+		<script type="text/javascript">
+			(function () {
+				emailjs.init("2apmVAZX7vxiooPDa");
+			})();
+		</script>
+	</th:block>
+</body>
+
+</html>

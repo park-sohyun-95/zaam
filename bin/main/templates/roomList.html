@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+<meta content="" name="description">
+<meta content="" name="keywords">
+<meta http-equiv="Content-Security-Policy"
+	content="upgrade-insecure-requests">
+<!-- Google Fonts -->
+<link
+	href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Raleway:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
+	rel="stylesheet">
+
+<!-- CSS Files -->
+<link href="/css/vendor/threePageCss/navibar.css" rel="stylesheet">
+
+<!--메인 6열로 잡아놓은것 -->
+<link href="/css/vendor/threePageCss/bootstrap.min.css" rel="stylesheet">
+<style>
+
+/*
+background
+*/
+.container {
+	display: flex;
+	flex-direction: column;
+	text-align: center;
+}
+
+.main-container {
+	display: flex;
+	position: relative;
+}
+
+.main-select {
+	position: relative;
+}
+
+.room-list {
+	flex: 1;
+}
+
+.room-type {
+	display: flex;
+	flex: 1;
+}
+/*  .purpose-title  */
+.room-title {
+	flex: 1;
+	margin: 1rem 0;
+	position: relative;
+	display: flex;
+	pointer-events: none;
+	align-items: center;
+	justify-content: center;
+	font-weight: bold;
+}
+
+.icon {
+	pointer-events: none;
+}
+
+.purposeType {
+	font-family: 'Do Hyeon', sans-serif;
+	color: #ffffff;
+	background: transparent;
+	margin: 10px 1px;
+	padding: 11px 23px;
+	border-radius: 22px !important;
+	cursor: pointer;
+	font-size: 0.8571em;
+	font-weight: 600;
+	line-height: 1.35em;
+	background-color: #ff385c;
+	position: relative;
+	border: 1px solid #eeeeee;
+	float : left;
+}
+
+.purposeType:hover {
+	/* margin-left: 5px;
+	margin-top : 5px; */
+	background-color: #ffffff;
+	border: 1px solid #000;
+	color: #000;
+}
+
+/* .purposeType:active {
+	margin-left: 5px;
+	margin-top : 5px;
+	box-shadow : none;
+} */
+
+.main-select:first-child{
+	margin-left: 5rem;
+}
+
+#pagingForm {
+	text-align: center;
+}
+
+.content-list-wrap, #room-list-wrap {
+	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	height: 100vmin;
+}
+
+.enter-btn {
+	position: absolute;
+	top: 50%;
+	right: 1rem;
+	transform: translateY(-50%);
+	border: 1px solid #eeeeee;
+}
+
+.edit-btn {
+	position: absolute;
+	bottom: -1rem;
+	right: 1rem;
+	border: 1px solid #eeeeee;
+}
+
+.createRoom-btn {
+	position: absolute;
+	right: 1rem;
+	top: 0;
+	border: 1px solid #eeeeee;
+    margin-top: 6rem;
+    margin-right: 1rem;
+}
+
+.create-confirm-modal {
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	display: none;
+	transition: 0.5s;
+}
+
+.popup-wrap {
+	background-color: rgba(0, 0, 0, .3);
+	justify-content: center;
+	align-items: center;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: none;
+	padding: 15px;
+}
+
+.popup {
+	width: 30%;
+	height: auto;
+	max-width: 600px;
+	border-radius: 10px;
+	overflow: hidden;
+	box-shadow: 1px 2px 9px 1px rgba(0 0 0 / 40%);
+	background-color: #ff385c;
+}
+
+.head-title {
+	color: #ffffff;
+	font-size: 23px;
+	font-weight: bold;
+	margin-top: 8px;
+}
+
+.popup-head {
+	width: 100%;
+	height: 1px;
+	display: flex;
+/* 	align-items: center; */
+	justify-content: center;
+}
+
+.popup-body {
+	width: 100%;
+	height: 300px;
+	background-color: #ffffff;
+}
+
+.body-content {
+	width: 100%;
+}
+
+.body-titlebox {
+	text-align: center;
+	width: 100%;
+	height: 40px;
+	margin-bottom: 10px;
+	padding: 20px;
+}
+
+.body-contentbox {
+	word-break: break-word;
+	overflow-y: auto;
+	max-height: 400px;
+	margin: 3rem;
+}
+
+.popup-foot {
+	width: 100%;
+	height: 50px;
+}
+
+.pop-btn {
+	/* 
+	*/
+	display: inline-flex;
+	width: 49%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+	float: left;
+    cursor: pointer;
+    color: #ffffff;
+}
+
+.pop-btn.confirm {
+	border-right: 1px solid #ffffff;
+}
+
+#createRoomMaxUser {
+	width: 40px;
+}
+
+
+#pagingForm{
+	justify-content: center;
+	align-items: center;
+	/* min-height: 100vh; */
+
+}
+
+.pageNum {
+	position: relative;
+	background: #fff;
+	display: flex;
+	/* padding: 10px 20px;
+	border-radius: 50px;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, .2); */
+	justify-content: center;
+	padding: 20px;
+}
+
+.pageNum li{
+	list-style: none;
+	line-height: 50px;
+	margin: 0 5px;
+}
+
+.pageNum li.pageNumber{
+	width: 50px;
+	height: 50px;
+	line-height: 50px;
+	text-align: center;
+}
+
+.pageNum li a{
+	display:block;
+	text-decoration: none;
+	color:#777;
+	font-weight: 600;
+	border-radius: 50%;
+}
+
+.pageNum li.pageNumber:hover a,
+.pageNum li.pageNumber:active a{
+	background: #333;
+	color: #fff;
+
+}
+
+.pageNum li:first-child{
+	margin-right: 30px;
+	font-weight: 700;
+	font-size: 20px;
+}
+.pageNum li:last-child{
+	margin-left :30px;
+	font-weight: 700;
+	font-size: 20px;
+}
+
+.icon-box{
+	position: relative;
+	/* box-shadow: inset 5px 5px 5px rgba(0,0,0,0.05),
+	inset -5px -5px 5px rgba(255,255,255,0.5),
+	5px 5px 5px rgba(0,0,0,0.05),
+	-5px -5px 5px rgba(255,255,255,0.5); */
+	padding: 20px;
+	margin: 20px;
+	border-radius: 20px;
+}
+
+.purpose-big{
+	margin: auto;
+    display: flex;
+
+}
+
+
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+input.chatInput {
+    background-color: transparent;
+    cursor: pointer;
+    border: var(--filter-button_border,1px solid var(--j-qkgmf));
+    border-radius: var(--b-y-unon);
+    margin: 0;
+    padding: 7px 0;
+    height: var(--cw-a-a-u-a);
+}
+.chatInputCheckbox {
+	display: inline-block !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgb(34, 34, 34) !important;
+    height: 20px !important;
+    width: 20px !important;
+    background: rgb(34, 34, 34) !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    vertical-align: top !important;
+    border-radius: 4px !important;
+    border: 1px solid #eeeeee !important;
+    color: rgb(255, 255, 255) !important;
+}
+
+/* #userminus:hover #userplus:hover{
+	border-color: #eeeeee !important;
+} */
+/* select::before{
+	outline: red;
+} */
+
+
+/* select:focus {
+    outline: red;
+} */
+
+/* select:hover{
+	outline: red;
+	
+} */
+
+</style>
+<script th:src="@{/js/jquery-3.6.0.js}"></script>
+<script th:inline="javascript">
+	let purposeType = 'all';
+
+	$(document)
+			.ready(
+					function() {
+
+						let maxuser = $('#createRoomMaxUser').val();
+						let purposeTypeCount = 0;
+
+						searchRoom();
+
+						$("#setPwd").change(
+								function() {
+									if (this.checked) {
+										$('#createRoomPassword').attr(
+												"readonly", false);
+									} else if (!this.checked) {
+										$('#createRoomPassword').attr(
+												"readonly", true);
+									}
+								});
+						$(".createRoom-btn").on('click', function() {
+							$('#createRoomMaxUser').val(maxuser);
+							$("#popup").css('display', 'flex').hide().fadeIn();
+						});
+						$("#confirm")
+								.on(
+										'click',
+										function() {
+											if ($('#createRoomName').val() == '') {
+												alert('채팅방의 제목을 입력해주세요.');
+												return false;
+											} else if ($('#setPwd').is(
+													':checked')
+													&& $('#createRoomPassword')
+															.val() == '') {
+												alert('비밀번호 설정을 체크하셨습니다. 비밀번호를 입력해주세요.');
+												return false;
+											} else if (!$('#setPwd').is(
+													':checked')
+													&& $('#createRoomPassword')
+															.val() != '') {
+												alert('비밀번호 설정을 체크하지 않았습니다.');
+												return false;
+											} else if ($('#createRoomMaxUser')
+													.val() == '') {
+												alert('채팅방의 최대 인원수를 입력해주세요.');
+												return false;
+											} else if (!$('.roomType').is(
+													':checked')) {
+												alert('채팅방의 카테고리를 설정해주세요.');
+												return false;
+											} else {
+												$
+														.ajax({
+															url : 'createRoom',
+															type : 'post',
+															data : {
+																roomname : $(
+																		'#createRoomName')
+																		.val(),
+																roompw : $(
+																		'#createRoomPassword')
+																		.val(),
+																maxuser : $(
+																		'#createRoomMaxUser')
+																		.val(),
+																purposename : $(
+																		"input[name='roomType']:checked")
+																		.val()
+															},
+															success : function(
+																	insertedRoom) {
+																alert('채팅방이 개설되었습니다.');
+																$(
+																		'#createRoomName')
+																		.val('');
+																$(
+																		'#createRoomPassword')
+																		.val('');
+																$(
+																		'#createRoomMaxUser')
+																		.val('');
+																$('#setPwd')
+																		.prop(
+																				'checked',
+																				false);
+																$('.roomType')
+																		.prop(
+																				'checked',
+																				false);
+																modalClose();
+																location.href = "/chat/chat?roomid="
+																		+ insertedRoom.roomid;
+															},
+															error : function() {
+																alert('채팅방 개설에 실패했습니다.');
+															}
+														})
+											}
+										});
+						$('#close').on('click', function() {
+							$('#createRoomName').val('');
+							$('#createRoomPassword').val('');
+							$('#createRoomMaxUser').val('');
+							$('#setPwd').prop('checked', false);
+							$('.roomType').prop('checked', false);
+							maxuser = 1;
+							modalClose();
+						});
+						$("#roomList").on('click', function() {
+							if ($('#wordType').val() != "all") {
+								searchRoom();
+							}
+						});
+						$("#sortType").on("change", function() {
+							searchRoom();
+						});
+						$('.purposeType')
+								.on(
+										'click',
+										function() {
+											purposeType = $(this).val();
+											if (purposeTypeCount == 0) {
+												$(this).css({
+													
+															'background-color': '#ffffff',
+															'border': '1px solid #000',
+															'color': '#000'
+												});
+												purposeTypeCount = 1;
+												searchRoom();
+											} else if (purposeTypeCount == 1) {
+												$(this)
+														.css({
+															'background-color' : '#ff385c',
+															'color' : '#fff',
+															'border': '1px solid #eeeeee'
+															
+															});
+												purposeType = '';
+												searchRoomAllPurposeType();
+												purposeTypeCount = 0;
+											}
+										})
+						$('#userminus').on('click', function() {
+							if (maxuser > 1) {
+								maxuser = parseInt(maxuser) - 1;
+							}
+							$('#createRoomMaxUser').val(maxuser);
+						})
+						$('#userplus').on('click', function() {
+							maxuser = parseInt(maxuser) + 1;
+							$('#createRoomMaxUser').val(maxuser);
+						})
+						$('#createRoomMaxUser').on('change', function() {
+							maxuser = $('#createRoomMaxUser').val();
+						})
+					});
+	function searchRoom(page) {
+		$.ajax({
+			url : 'searchRoom',
+			type : 'post',
+			data : {
+				page : page,
+				sortType : $('#sortType').val(),
+				purposeType : purposeType,
+				wordType : $('#wordType').val(),
+				searchWord : $('#searchWord').val()
+			},
+			dataType : 'JSON',
+			success : function(map) {
+				output(map.roomList);
+				pagingForm(map.navi);
+			},
+			error : function() {
+			}
+		});
+	}
+	function searchRoomAllPurposeType(page) {
+		$.ajax({
+			url : 'searchRoom',
+			type : 'post',
+			data : {
+				page : page,
+				sortType : $('#sortType').val(),
+				purposeType : 'all',
+				wordType : $('#wordType').val(),
+				searchWord : $('#searchWord').val()
+			},
+			dataType : 'JSON',
+			success : function(map) {
+				output(map.roomList);
+				pagingForm(map.navi);
+			},
+			error : function() {
+			}
+		});
+	}
+	function output(roomList) {
+		let s = '';
+		$(roomList)
+				.each(
+						function(i, n) {
+							s += '<div class="col-lg-4 col-md-6 d-flex align-items-stretch">';
+							s += '<div class="icon-box" id="' + n.roomid
+									+ '" onclick="intoChat(' + n.roomid + ')">';
+							s += '<div class="icon"><img class="icon-logo" src="../images/playVideo.svg"><i class="bx bxl-dribbble"></i></div>';
+							s += '<h4><a href="" style="text-decoration: none;">' + n.roomname + '</a></h4>';
+							s += '<div class="room-title">';
+							s += '<table>';
+							s += '<tr><td colspan="2">' + n.hostid
+									+ '님의 채팅방입니다</td></tr>';
+							s += '<tr><td>' + n.membercount + ' / ' + n.maxuser
+									+ '</td></tr>';
+							s += '</table></div></div></div>';
+						});
+		$('.room-title').css({
+			'flex' : '1',
+			'margin' : '1rem 0',
+			'position' : 'relative',
+			'display' : 'flex',
+			'align-items' : 'center',
+			'justify-content' : 'center',
+			'font-weight' : 'bold'
+		});
+		$('.row').html(s);
+	}
+	function pagingForm(navi) {
+		let s = '<ul class="pageNum">';
+		s += '<li><a href="javascript:pagingFormSubmit(' + (navi.currentPage - 1)
+				+ ')">◀</a></li> ';
+		for (let i = navi.startPageGroup; i <= navi.endPageGroup; i++) {
+			s += '<li class="pageNumber"><a href="javascript:pagingFormSubmit(' + i + ')">' + i
+					+ '</a>&nbsp;</li>';
+		}
+		s += '<li><a href="javascript:pagingFormSubmit(' + (navi.currentPage + 1)
+				+ ')">▶</a></li> ';
+		s += '</ul>'
+		document.getElementById('pagingForm').innerHTML = s;
+	}
+	function pagingFormSubmit(currentPage) {
+		let page = document.getElementById('page');
+		page.value = currentPage;
+		searchRoom(page.value);
+	}
+	function modalClose() {
+		$("#popup").fadeOut();
+	}
+	function intoChat(roomid) {
+		location.href = "/chat/chat?roomid=" + roomid;
+	}
+</script>
+</head>
+<body>
+	<!-- ======= Header ======= -->
+	<header id="header" class="d-flex align-items-center">
+		<div class="container">
+			<div class="d-flex justify-content-between align-items-center">
+				<div class="logo">
+					<h1>
+						<img src="/images/LOGO_FINAL.png" alt="..." style="height: 4.5rem">
+						<a th:href="@{/room/roomList}">ZAAM</a>
+					</h1>
+
+
+					<!-- background -->
+
+					<div class="background"></div>
+					<!-- Uncomment below if you prefer to use an image logo -->
+					<!-- <a href="index.html"><img src="assets/img/logo.png" alt="" class="img-fluid"></a>-->
+				</div>
+				<nav id="navbar" class="navbar">
+					<ul>
+						<li class="dropdown"><a href="#"><span>
+									<p th:text="|${#authentication.principal.username}의 스터디룸|"></p>
+
+							</span> <i class="bi bi-chevron-down"></i></a>
+							<ul>
+								<li><a th:href="@{/history/history}">회의 기록 관리</a></li>
+								<li><a href="#">회원 정보 수정</a></li>
+								<li><a th:href="@{/member/logout}">로그아웃</a></li></li>
+					</ul>
+					<i class="bi bi-list mobile-nav-toggle"></i>
+				</nav>
+				<!-- .navbar -->
+			</div>
+		</div>
+	</header>
+	<!-- End Header -->
+	<main id="main">
+		<!-- ======= Breadcrumbs ======= -->
+		<hr>
+		<section id="breadcrumbs" class="breadcrumbs">
+			<div class="container">
+
+				<div class="main-header">
+					<h1 style="text-align: center;"
+						th:text="|${#authentication.principal.username}의 스터디룸|"></h1>
+				</div>
+			</div>
+			<div class="container" style="padding: 40px 0 40px 0;">
+				<div class="main-select">
+					<div>
+						<select name="sortType" id="sortType">
+							<option value="sort" th:selected="${sortType} == 'sort'">정렬순</option>
+							<option value="new" th:selected="${sortType} == 'new'">최신순</option>
+							<option value="old" th:selected="${sortType} == 'old'">오래된순</option>
+							<option value="usernumber"
+								th:selected="${sortType} == 'usernumber'">참여자순</option>
+						</select> <select name="enabledType" id="enabledType">
+							<option value="enabled" id="enabled">수강중</option>
+							<option value="disabled" id="disabled">수강종료</option>
+						</select> <select name="wordType" id="wordType">
+							<option value="all">전체</option>
+							<option value="title">방 제목</option>
+							<option value="roomHostId">호스트 ID</option>
+						</select> <input type="text" name="searchWord" th:value="${searchWord}"
+							id="searchWord"> <input type="button" value="검색"
+							id="roomList" class="buttonSearchRoom">
+					</div>
+<!-- 채팅방 카테고리 -->
+</div>
+<div class="purpose-big">					
+<div class="purpose-title" th:each="purposeList : ${purposeList}"
+	style="text-align: center;">
+	<input type="button" th:id="${purposeList.purposenum}"
+		name="purposeType" th:value="${purposeList.purposename}"
+		class="purposeType">
+</div>
+</div>
+				<div class="createRoom-btn">채팅방 개설</div>
+				<div class="main-container">
+					<input type="hidden" name="page" id="page">
+				</div>
+			</div>
+		</section>
+		<hr>
+		<!-- End Breadcrumbs -->
+		<!-- ======= Services Section ======= -->
+		<section id="services" class="services">
+			<div class="container">
+				<div class="row">
+					<div class="col-lg-4 col-md-6 d-flex align-items-stretch"
+						th:each="room : ${roomList}">
+						<div class="icon-box">
+							<div class="icon">
+								<i class="bx bxl-dribbble"></i>
+							</div>
+							<h4>
+								<a href="">[[${room.roomname}]]</a>
+							</h4>
+							<div class="room-title">
+								<table>
+									<tr>
+										<td colspan="2"><span
+											th:text="|${room.hostid}님의 채팅방입니다.|"></span></td>
+									</tr>
+									<tr>
+										<td><span
+											th:text="|현재 참여자 수 ${room.membercount} / ${room.maxuser}|"></span></td>
+									</tr>
+								</table>
+								<i class="bi bi-book"></i>
+							</div>
+						</div>
+					</div>
+				</div>
+				 -->
+			</div>
+			<div id="pagingForm"></div>
+		</section>
+		<!-- End Services Section -->
+		<div class="popup-wrap" id="popup">
+			<div class="popup">
+				<div class="popup-head">
+					<span class="head-title">ZAAM 채팅방 만들기</span>
+
+				</div>
+				<div class="popup-body">
+					<div class="body-content">
+						<div class="body-contentbox">
+							<table>
+								<tbody>
+									<tr>
+										<th>채팅방명</th>
+										<td><input type="text" id="createRoomName"
+											name="createRoomName" class="chatInput" style="border: 1px solid #eeeeee;"></td>
+									</tr>
+									<tr>
+										<th>비밀번호</th>
+										<td><input type="password" id="createRoomPassword"
+											name="createRoomPassword" class="chatInput" readonly style="border: 1px solid #eeeeee;"></td>
+									</tr>
+									<tr>
+										<td colspan="2"><input id="setPwd" type="checkbox" class="chatInputCheckbox">
+											<label for="setPwd" >비밀번호 설정</label></td>
+									</tr>
+									<tr>
+										<th>최대 인원 수</th>
+										<td><input type="button" id="userminus" value="-" style="background-color:#ffffff;">
+											<input type="Number" id="createRoomMaxUser"
+											name="createRoomMaxUser" value="1"> <input
+											type="button" id="userplus" value="+" style="background-color:#ffffff;"></td>
+									</tr>
+									<tr>
+										<th>카테고리</th>
+										<td>
+											<div th:each="purposeList : ${purposeList}"
+												class="purposeradio">
+												<input class="roomType" type="radio" name="roomType"
+													th:id="${purposeList.purposename}"
+													th:value="${purposeList.purposename}"><label
+													th:text="${purposeList.purposename}"></label>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div class="popup-foot">
+					<span class="pop-btn confirm" id="confirm">개설</span> <span
+						class="pop-btn close" id="close">취소</span>
+				</div>
+			</div>
+		</div>
+</body>
+</html>
