@@ -1,0 +1,81 @@
+// 3번
+create table Zaam_User (
+	userid varchar2(20) primary key,
+	userpw varchar2(100) not null,
+	username varchar2(20) not null,
+	email varchar2(50) not null,
+	age number not null,
+	roomid NUMBER,  -- references Zaam_Purpose(purpose_num) on delete cascade임
+	enabled NUMBER default 1 CHECK(enabled IN(1, 0)),
+	rolename VARCHAR2(20) DEFAULT 'ROLE_USER' CHECK (rolename IN('ROLE_USER', 'ROLE_ADMIN'))
+);
+
+// 4번
+create table Zaam_Room (
+	roomid NUMBER primary key,
+	hostid varchar2(20) references Zaam_User(userid),
+	roomname varchar2(200) not null,
+	roompw varchar2(50),
+	createtime DATE default sysdate,
+	maxuser NUMBER not null,
+	membercount number default 0,
+	purposenum NUMBER references Zaam_Purpose(purpose_num) on delete cascade,
+	enabled NUMBER default 1 CHECK(enabled IN(1, 0))
+);
+
+// 5번
+create sequence Zaam_Room_seq;
+
+// 1번
+create table Zaam_Purpose (
+	purposenum NUMBER primary key,
+	purposename varchar2(30) not null unique
+);
+
+// 2번
+create sequence Zaam_Purpose_seq;
+
+// 6번
+alter table Zaam_User add foreign key(roomid) references Zaam_Room(roomid);
+
+// 7번~ 이후부턴 상관 x
+create table Zaam_Room_History (
+    roomhistorynum number primary key,
+    roomid NUMBER references Zaam_Room(roomid),
+    roomname varchar2(200) not null,
+    userid varchar2(20) references Zaam_User(userid),
+    starttime DATE default sysdate,
+    endtime DATE
+);
+
+create sequence Zaam_Room_History_seq;
+
+create table Zaam_User_History (
+    userhistorynum number primary key,
+    roomhistorynum number references Zaam_Room_History(roomhistorynum),
+    userid varchar2(20) references Zaam_User(userid),
+    roomid NUMBER references Zaam_Room(roomid),
+    sleeptimecount NUMBER default 0,
+    sleeptimetime NUMBER default 0
+);
+
+create sequence Zaam_User_History_seq;
+
+졸은 시간대 측정
+create table Zaam_User_Time_History (
+    usertimehistorynum number primary key,
+    roomhistorynum number references Zaam_Room_History(roomhistorynum),
+    userid varchar2(20) references Zaam_User(userid),
+    sleeptimezone DATE default sysdate,
+    sleepimg varchar2(200) not null
+);
+
+create sequence Zaam_User_Time_History_seq;
+
+방마다의 메모
+create table Zaam_Memo (
+    userid varchar2(20) references Zaam_User(userid),
+    roomid number references Zaam_Room(roomid),
+    content clob,
+    CONSTRAINT memopk PRIMARY KEY(userid, romid)
+);
