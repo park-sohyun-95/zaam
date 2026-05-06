@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Security-Policy"
+	content="upgrade-insecure-requests">
+<script th:src="@{/js/jquery-3.6.0.js}"></script>
+<script src="https://kit.fontawesome.com/64d58efce2.js"
+	crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="../css/login.css" />
+<title>Sign in & Sign up Form</title>
+<style>
+</style>
+<script>
+    $(document).ready(function() {
+
+    })
+    
+    function login() {
+    	let userid = document.getElementById('userid');
+    	let userpw = document.getElementById('userpw');
+    	let loginForm = document.getElementById('loginForm');
+    	
+    	loginForm.submit();
+    }
+    
+    function SignUpUser() {
+    	let userid = document.getElementById('userid1');
+    	let userpw = document.getElementById('userpw1');
+    	let username = document.getElementById('username');
+    	let age = document.getElementById('age');
+    	let email = document.getElementById('email');
+    	$.ajax({
+    		url: 'insertMember',
+    		type: 'post',
+    		data: {userid: userid.value, userpw: userpw.value, username: username.value, age: age.value, email: email.value},
+    		success: function(e) {
+    			if(e == 1){
+	    			alert('회원가입이 완료 되었습니다.');
+    			}
+    		},
+    		error: function(e) {
+    			if(e != 1) {
+	    			alert('회원가입에 실패했습니다.');
+    			}
+    		}
+    	});
+    }
+    
+    //비밀번호1의 구성 체크
+    function checkPw1(){
+       var pw1 = document.getElementById('userpw1');
+       var pw2 = document.getElementById('userpw2');
+       var pwcheck = /^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{8,25}$/;
+       
+       //공백일 때
+       if (pw1.value == "" || pw1.value.length == 0) {
+          document.getElementById('pwEssential').style.display = "inline-block"; //필수 입력 항목
+          document.getElementById('pwCondition').style.display = "none";
+          document.getElementById('pwCanUse').style.display = "none";
+          return false;
+       }
+       //공백 아닐 때
+       else {
+    	  //조건에 맞지 않을 때
+          if (!(pwcheck.test(pw1.value)) || (pw1.value.length < 6 || pw1.value.length > 12)) {
+             document.getElementById('pwEssential').style.display = "none";
+             document.getElementById('pwCanUse').style.display = "none";
+             document.getElementById('pwCondition').style.display = "inline-block"; //6~12자리
+             pw1.focus();
+             return false;
+          } 
+          else if(pwcheck.test(pw1.value) && (pw1.value.length >= 6 && pw1.value.length <= 12)){
+             document.getElementById('pwEssential').style.display = "none";            
+             document.getElementById('pwCondition').style.display = "none";            
+             document.getElementById('pwCanUse').style.display = "inline-block"; //사용 가능한 비밀번호            
+          }
+      }
+      return true;
+    }
+    
+    //비밀번호1과 비밀번호2가 일치한지 체크
+    function checkPw2() {
+       let pw1 = document.getElementById('userpw1');
+       let pw2 = document.getElementById('userpw2');
+       
+       //pw1이 공백이 아닐 때
+       if(pw1.value != "" || pw1.value.length != 0) {
+    	   //pw2가 공백일 때
+    	   if(pw2.value == "" || pw2.value.length == 0) {
+    		   document.getElementById('pwEssential2').style.display = "inline-block"; //필수 입력 항목
+    		   document.getElementById('pwSame').style.display = "none";
+    		   document.getElementById('pwConcurrence').style.display = "none";
+    		   document.getElementById('pwInputPw1').style.display = "none";
+    	   }
+    	   else if (pw1.value != "" && pw2.value != "") {
+    	   		if(pw1.value == pw2.value) {
+    		    	document.getElementById('pwEssential2').style.display = "none";
+    		        document.getElementById('pwSame').style.display = "none";         
+    		    	document.getElementById('pwConcurrence').style.display = "inline-block"; //비밀번호 일치
+    		   		document.getElementById('pwInputPw1').style.display = "none";
+    		    }
+    	   		else {
+    			    document.getElementById('pwEssential2').style.display = "none";
+    			    document.getElementById('pwSame').style.display = "inline-block"; // 동일한 비밀번호 입력            
+    			    document.getElementById('pwConcurrence').style.display = "none";   			
+    		   		document.getElementById('pwInputPw1').style.display = "none";
+    	   		}
+    	   }
+       	   else {
+    		   return true;
+    	   }
+       }
+       //pw1이 공백일 때
+       else {
+    	   if(pw2.value == "" || pw2.value.length == 0) {
+    		   document.getElementById('pwEssential2').style.display = "inline-block"; //필수 입력 항목
+    		   document.getElementById('pwSame').style.display = "none";
+    		   document.getElementById('pwConcurrence').style.display = "none";
+    		   document.getElementById('pwInputPw1').style.display = "none";
+    	   } else {
+	    	   document.getElementById('pwEssential').style.display = "none";
+    		   document.getElementById('pwSame').style.display = "none";
+    		   document.getElementById('pwConcurrence').style.display = "none";
+    		   document.getElementById('pwInputPw1').style.display = "inline-block"; //비밀번호1 먼저 입력
+    		   return false;
+    	   }
+       }
+    }
+    //이름 체크
+    function checkName() {
+    	   let username = document.getElementById('username');
+    		   
+    	   if (username.value == "" || username.value.length == 0) {
+    	      document.getElementById('nameEssential').style.display = "inline-block"; //필수 입력
+    	      document.getElementById('nameRewrite').style.display = "none";
+    	      document.getElementById('nameCanUse').style.display = "none";
+    	      return false;
+    	   }
+    	   //공백이 아닐 때
+    	   else {
+    	      for(let i=0; i<username.value.length; i++) {
+    	         var charChk = username.value.substring(i,i+1);
+    	         if(charChk.match(/[0-9]|[a-z]|[A-Z]/) || username.value.length <= 1) {
+    	            document.getElementById('nameEssential').style.display = "none";
+    	            document.getElementById('nameRewrite').style.display = "inline-block"; //정확한 형식으로 입력
+    	            document.getElementById('nameCanUse').style.display = "none";
+    	            return false;
+    	         } else {
+    		         document.getElementById('nameEssential').style.display = "none";
+    		         document.getElementById('nameRewrite').style.display = "none";
+    		         document.getElementById('nameCanUse').style.display = "inline-block"; //사용 가능한 이름
+    	         }
+    	      }
+    	   }
+    	   return true;
+    	}
+    </script>
+</head>
+<body>
+	<div class="container">
+		<div class="forms-container">
+			<div class="signin-signup">
+				<form method="post" th:action="@{login}" class="sign-in-form"
+					id="loginForm">
+					<h2 class="title">로그인</h2>
+					<div class="input-field">
+						<i class="fas fa-user"></i> <input type="text" name="userid"
+							id="userid" placeholder="Username" />
+					</div>
+					<div class="input-field">
+						<i class="fas fa-lock"></i> <input type="password" name="userpw"
+							id="userpw" placeholder="Password" />
+					</div>
+					<input type="button" value="로그인" class="btn solid"
+						onclick="login()" />
+				</form>
+
+				<form class="sign-up-form">
+					<h2 class="title">회원가입</h2>
+					<div class="input-field">
+						<i class="fas fa-user"></i> <input type="text" id="userid1"
+							placeholder="Userid" />
+					</div>
+					<span class="checkIdEssential" style="display: none; color: red;">필수
+						입력 항목입니다</span> <span class="checkIdUsed"
+						style="display: none; color: red;">이미 존재하거나 사용 불가한 아이디입니다</span> <span
+						class="checkIdLength" style="display: none; color: red;">숫자,영문,
+						특수문자를 포함한 6~15자리의 아이디를 입력해 주세요</span> <span class="checkIdCanUse"
+						style="display: none; color: green;">사용 가능한 아이디입니다.</span>
+					<div class="input-field">
+						<i class="fas fa-lock"></i> <input type="password" id="userpw1"
+							placeholder="Password" oninput="checkPw1()" />
+					</div>
+					<span class="validFeedback" id="pwEssential"
+						style="display: none; color: red;">필수 입력 항목입니다</span> <span
+						class="validFeedback" id="pwCondition"
+						style="display: none; color: red;">숫자, 영문, 특수문자를 포함한
+						6~12자리의 비밀번호를 입력해 주세요</span> <span class="validFeedback" id="pwCanUse"
+						style="display: none; color: green;">올바른 형식입니다</span>
+					<div class="input-field">
+						<i class="fas fa-lock"></i> <input type="password" id="userpw2"
+							placeholder="Confirm Password" oninput="checkPw2()" />
+					</div>
+					<span class="validFeedback" id="pwEssential2"
+						style="display: none; color: red;">필수 입력 항목입니다</span> <span
+						class="validFeedback" id="pwSame"
+						style="display: none; color: red;">동일한 암호를 입력하세요</span> <span
+						class="validFeedback" id="pwConcurrence"
+						style="display: none; color: green;">비밀번호가 일치합니다</span> <span
+						class="validFeedback" id="pwInputPw1"
+						style="display: none; color: red;">비밀번호를 먼저 입력해 주세요</span>
+					<div class="input-field">
+						<i class="fas fa-user"></i> <input type="text" id="username"
+							placeholder="Username" oninput="checkName()" />
+					</div>
+					<span class="validFeedback" id="nameEssential"
+						style="display: none; color: red;">필수 입력 항목입니다</span> <span
+						class="validFeedback" id="nameRewrite"
+						style="display: none; color: red;">성명을 정확히 입력해 주세요</span> <span
+						class="validFeedback" id="nameCanUse"
+						style="display: none; color: green;">올바른 형식입니다</span>
+					<div class="input-field">
+						<i class="fas fa-user"></i> <input type="text" id="age"
+							placeholder="Age" />
+					</div>
+					<div class="input-field">
+						<i class="fas fa-envelope"></i> <input type="text" id="email"
+							placeholder="Email" />
+					</div>
+					<input type="button" class="btn" value="회원가입"
+						onclick="SignUpUser()" />
+				</form>
+			</div>
+		</div>
+		<div class="panels-container">
+			<div class="panel left-panel">
+				<div class="content">
+					<h3>
+						Zaam에 오신 것을 환영합니다<br /> 이용이 처음이신가요?
+					</h3>
+					<p></p>
+					<button class="btn transparent" id="sign-up-btn">회원가입</button>
+				</div>
+				<img src="../images/img_login/undraw_educator_re_ju47.svg"
+					class="image" alt="" />
+			</div>
+			<div class="panel right-panel">
+				<div class="content">
+					<h3>이미 회원이신가요?</h3>
+					<p></p>
+					<button class="btn transparent" id="sign-in-btn">로그인</button>
+				</div>
+				<img src="../images/img_login/undraw_meeting_re_i53h.svg"
+					class="image" alt="" />
+			</div>
+		</div>
+	</div>
+	<script src="../css/vendor/js/app.js"></script>
+</body>
+</html>
