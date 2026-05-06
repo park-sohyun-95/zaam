@@ -1,0 +1,54 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.test.dao.MemberDAO">
+
+<!-- 회원정보 저장 -->
+<insert id="insertMember" parameterType="Member">
+insert into Zaam_User
+	(userid
+	, userpw
+	, username
+	, email
+	, age
+	, enabled
+	, rolename)
+values
+	(#{userid}
+	, #{userpw}
+	, #{username}
+	, #{email}
+	, #{age}
+	, '1'
+	, 'ROLE_USER')
+</insert>
+<select id="selectMemberList" resultType="Member">
+select * from Zaam_User
+</select>
+
+<select id="selectMember" resultType="Member" parameterType="String">
+select * from Zaam_User
+where userid = #{loginId}
+</select>
+
+<select id="checkId" parameterType="int" resultType="int">
+select count(*) from Zaam_User where userid = #{userid}
+</select>
+
+<update id="updateMemo" parameterType="map">
+update Zaam_Memo set content = #{memoContent} where roomid = #{roomid} and userid = #{userid}
+</update>
+
+<select id="selectMemo" parameterType="map" resultType="String">
+select m.content from Zaam_Memo m where roomid = #{roomid} and userid = #{userid}
+</select>
+
+<insert id="insertMemo" parameterType="map">
+insert into Zaam_Memo (userid, roomid, content) values (#{userid}, #{roomid}, '메모:')
+</insert>
+
+<select id="selectInviteMemberList" parameterType="String" resultType="Member">
+select * from Zaam_User where userid != #{userid}
+</select>
+</mapper>

@@ -1,0 +1,140 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.test.dao.HistoryDAO">
+<insert id="startChatting" parameterType="int">
+	insert into zaam_room_history (
+   		roomhistorynum
+   		, roomid
+   		, roomname
+   		, userid
+   		, starttime
+	) values (
+	    zaam_room_history_seq.nextval
+	    , #{roomid}
+	    , (select r.roomname from zaam_room r where roomid = #{roomid})
+	    , (select r.hostid from zaam_room r where roomid = #{roomid})
+	    , sysdate
+	 )
+</insert>
+
+<update id="endChatting" parameterType="map">
+update zaam_room_history set endtime = sysdate where roomhistorynum = #{roomhistorynum}
+</update>
+
+<select id="getRoomHistory" parameterType="int" resultType="Integer">
+select max(roomhistorynum) from zaam_room_history where roomid = #{roomid}
+</select>
+
+<select id="selectHistoryList" parameterType="String" resultType="RoomHistory">
+select * from Zaam_Room_History where userid = #{Username} order by roomhistorynum asc
+</select>
+
+<select id="selectHistoryRoom" parameterType="int" resultType="RoomHistory">
+select * from Zaam_Room_History where roomhistorynum = #{roomhistorynum}
+</select>
+
+<select id="selectHistoryById" parameterType="String" resultType="RoomHistory">
+select * from ( select *
+				from Zaam_Room_History
+				where userid = #{Username}
+				order by endtime DESC
+				)
+				where ROWNUM <![CDATA[<=]]> 1
+</select>
+
+<select id="selectAvgSleepTime" parameterType="int" resultType="Float">	
+select avg(sleeptimetime) from Zaam_User_History
+group by roomid
+having roomid = #{roomid}
+</select>
+
+<select id="selectTotalSleepTime" parameterType="int" resultType="Integer">	
+select sum(sleeptimetime) from Zaam_User_History
+group by roomhistorynum
+having roomhistorynum = #{roomhistorynum}
+</select>
+	
+<select id="selectSleepKing" parameterType="int" resultType="Map">	
+select username from Zaam_User	
+where userid in (select userid	
+				from Zaam_User_History	
+				where sleeptimetime = (select max(sleeptimetime)	
+										 from Zaam_User_History	
+										 where roomhistorynum = #{roomhistorynum})) 	
+</select>
+
+<select id="selectSleepPerson" parameterType="int" resultType="Integer">
+select count(*) from Zaam_User_History u, Zaam_Room_History m
+where u.roomhistorynum = m.roomhistorynum and u.roomhistorynum = #{roomhistorynum} and u.sleeptimecount > 0
+</select>
+
+<update id="setSleepTime" parameterType="UserHistory">
+update Zaam_User_History set sleeptimecount = sleeptimecount + 1, sleeptimetime = sleeptimetime + #{sleeptimetime} where roomhistorynum = #{roomhistorynum} and userid = #{userid}
+</update>
+
+<select id="getUserHistory" parameterType="UserHistory" resultType="UserHistory">
+select * from zaam_user_history where userid = #{userid} and roomid = #{roomid} and roomhistorynum = #{roomhistorynum}
+</select>
+
+<insert id="createUserHistory" parameterType="UserHistory">
+	insert into zaam_user_history (
+		userhistorynum
+	    , roomhistorynum
+	    , userid
+	    , roomid )
+	values (zaam_user_history_seq.nextval, #{roomhistorynum}, #{userid}, #{roomid})
+</insert>
+
+<!-- 졸은 시간대 -->
+<insert id="createUserTimeHistory" parameterType="UserHistory">
+	insert into Zaam_User_Time_History (
+		usertimehistorynum
+	    , roomhistorynum
+	    , userid
+		, sleepimg)
+	values (Zaam_User_Time_History_seq.nextval, #{roomhistorynum}, #{userid}, #{sleepimg})
+</insert>
+
+<select id="selectChattingTime" parameterType="int" resultType="RoomHistory">	
+select starttime, endtime from Zaam_Room_History	
+where roomhistorynum = #{roomhistorynum}	
+</select>
+
+<select id="selectTotalPerson" parameterType="int" resultType="Integer">	
+select count(*) from Zaam_User_History
+where roomhistorynum = #{roomhistorynum}
+</select>
+
+<select id="selectSleepTimeZone1" parameterType="int" resultType="String">	
+select sleeptimezone from Zaam_User_Time_History	
+where roomhistorynum = #{roomhistorynum}	
+</select>
+
+<select id="selectSleepTimeZone2" parameterType="Map" resultType="String">	
+select sleeptimezone from Zaam_User_Time_History 	
+where roomhistorynum = (select roomhistorynum from (select * from Zaam_Room_History order by roomhistorynum desc)	
+						where roomid = #{roomid} and roomhistorynum <![CDATA[<]]> #{roomhistorynum}	
+						and ROWNUM <![CDATA[<=]]> 1)	
+</select>
+
+<select id="selectSleepPersonList" parameterType="int" resultType="UserHistory">	
+select userid, sleeptimecount from Zaam_User_History	
+where roomhistorynum = #{roomhistorynum} and sleeptimecount > 0 and sleeptimetime > 0	
+</select>
+
+<select id="selectRoomCount" parameterType="int" resultType="Integer">	
+select roomhistorynum from Zaam_Room_History	
+where roomid = #{roomid} order by roomhistorynum asc	
+</select>
+
+<select id="selectSleepKingImage" parameterType="int" resultType="String">
+select sleepimg from Zaam_User_Time_History where roomhistorynum = #{roomhistorynum} and
+userid = (select distinct userid from Zaam_User_History 
+		  where sleeptimetime = (select max(sleeptimetime) from Zaam_User_History 
+			    	  			 where roomhistorynum = #{roomhistorynum}))
+and rownum <![CDATA[<=]]> 1
+order by sleeptimezone asc
+</select>
+</mapper>
